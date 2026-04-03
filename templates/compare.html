@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Compare - Team Spirit Analytics</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --bg: #08090d; --bg2: #0d0f14; --bg3: #13161e;
+            --card: #171a24; --card2: #1c2030;
+            --border: #252a3a; --border2: #2f3548;
+            --text: #eaedf3; --text2: #7a8299; --text3: #4a5068;
+            --accent: #c8a44e; --accent-dim: rgba(200,164,78,.12); --accent-mid: rgba(200,164,78,.25);
+            --blue: #4d8ef7; --purple: #9271f6; --green: #3dd68c; --red: #f0555a;
+            --orange: #e89b3e; --cyan: #42c6de; --gold: #c8a44e;
+            --radius: 10px; --radius-lg: 14px;
+            --shadow: 0 2px 12px rgba(0,0,0,.35); --shadow-lg: 0 8px 32px rgba(0,0,0,.5);
+        }
+        body { font-family: 'Inter', -apple-system, system-ui, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; -webkit-font-smoothing: antialiased; }
+        a { color: var(--accent); text-decoration: none; } a:hover { color: #dbb960; }
+        ::selection { background: var(--accent-mid); color: #fff; }
+
+        .header { background: linear-gradient(180deg, #11131a, var(--bg)); border-bottom: 1px solid var(--border); padding: 0 48px; height: 68px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; backdrop-filter: blur(20px); }
+        .header-left { display: flex; align-items: center; gap: 14px; }
+        .logo { height: 36px; width: 36px; opacity: .9; }
+        .brand { display: flex; flex-direction: column; }
+        .brand-name { font-size: 16px; font-weight: 800; letter-spacing: 1.5px; text-transform: uppercase; color: var(--accent); }
+        .brand-sub { font-size: 10px; font-weight: 500; color: var(--text2); letter-spacing: 2px; text-transform: uppercase; }
+        .nav-btn { padding: 8px 20px; border-radius: 8px; font-size: 12px; font-weight: 600; font-family: 'Inter', sans-serif; letter-spacing: .3px; background: var(--accent-dim); color: var(--accent); border: 1px solid rgba(200,164,78,.2); cursor: pointer; transition: all .2s; text-decoration: none; display: inline-flex; align-items: center; }
+        .nav-btn:hover { background: var(--accent-mid); border-color: var(--accent); text-decoration: none; }
+
+        .container { max-width: 1100px; margin: 0 auto; padding: 32px 48px; }
+
+        .btn { padding: 9px 22px; border-radius: 8px; font-size: 12px; font-weight: 700; font-family: 'Inter', sans-serif; cursor: pointer; border: 1px solid var(--border); background: var(--bg3); color: var(--text2); transition: all .2s; letter-spacing: .3px; }
+        .btn:hover { border-color: var(--accent); color: var(--text); }
+        .btn-primary { background: linear-gradient(135deg, var(--accent), #b08930); color: #0a0b10; border: none; }
+        .btn-primary:hover { opacity: .88; }
+        .btn-reset { background: rgba(240,85,90,.08); color: var(--red); border: 1px solid rgba(240,85,90,.15); }
+        .btn-reset:hover { background: rgba(240,85,90,.18); border-color: var(--red); }
+
+        .compare-controls { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 28px; margin-bottom: 28px; box-shadow: var(--shadow); }
+        .compare-controls h2 { font-size: 14px; font-weight: 700; letter-spacing: .5px; text-transform: uppercase; color: var(--text2); margin-bottom: 20px; }
+        .controls-row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-bottom: 14px; }
+        .controls-row:last-child { margin-bottom: 0; }
+        .controls-row label { color: var(--text3); font-size: 11px; font-weight: 700; min-width: 90px; letter-spacing: .5px; text-transform: uppercase; }
+        .controls-row select { background: var(--bg3); color: var(--text); border: 1px solid var(--border); padding: 9px 14px; border-radius: 8px; font-size: 12px; font-family: 'Inter', sans-serif; font-weight: 500; outline: none; min-width: 220px; transition: border-color .2s; }
+        .controls-row select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-dim); }
+        .vs-label { color: var(--accent); font-weight: 800; font-size: 14px; letter-spacing: 2px; }
+        .btn-row { display: flex; gap: 10px; margin-top: 20px; }
+
+        .compare-result { display: none; }
+        .compare-result.active { display: block; }
+        .result-header { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-lg) var(--radius-lg) 0 0; padding: 18px 24px; border-bottom: none; }
+        .result-header h2 { font-size: 14px; font-weight: 700; letter-spacing: .5px; text-transform: uppercase; color: var(--text2); }
+        .compare-table { background: var(--card); border: 1px solid var(--border); border-radius: 0 0 var(--radius-lg) var(--radius-lg); overflow: hidden; margin-bottom: 28px; box-shadow: var(--shadow); }
+        .compare-table table { width: 100%; border-collapse: collapse; }
+        .compare-table th { background: var(--bg3); padding: 12px 20px; text-align: center; font-weight: 700; color: var(--text3); text-transform: uppercase; font-size: 10px; letter-spacing: .7px; border-bottom: 1px solid var(--border); }
+        .compare-table th:first-child { text-align: left; }
+        .compare-table td { padding: 12px 20px; text-align: center; border-bottom: 1px solid rgba(37,42,58,.5); font-size: 13px; font-weight: 500; }
+        .compare-table td:first-child { text-align: left; color: var(--text2); font-weight: 600; font-size: 12px; }
+        .compare-table tr:last-child td { border-bottom: none; }
+        .compare-table tr:hover { background: rgba(200,164,78,.03); }
+        .better { color: var(--green); font-weight: 800; }
+        .worse { color: var(--text3); }
+        .same { color: var(--text); }
+
+        @media (max-width: 768px) {
+            .header { padding: 12px 16px; height: auto; flex-direction: column; gap: 10px; }
+            .container { padding: 16px; }
+            .controls-row { flex-direction: column; align-items: flex-start; }
+            .controls-row select { min-width: 100%; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <div class="header-left">
+        <img src="/static/logo.png" alt="TS" class="logo">
+        <div class="brand">
+            <span class="brand-name">Team Spirit</span>
+            <span class="brand-sub">Compare Tool</span>
+        </div>
+    </div>
+    <a href="/" class="nav-btn">Dashboard</a>
+</div>
+
+<div class="container">
+    <div class="compare-controls">
+        <h2>Setup Comparison</h2>
+        <div class="controls-row">
+            <label>Type</label>
+            <select id="compareType"><option value="players">Players</option><option value="teams">Teams</option></select>
+        </div>
+        <div class="controls-row">
+            <label>Tournament</label>
+            <select id="compareTournament"><option value="">All Tournaments</option></select>
+        </div>
+        <div class="controls-row">
+            <label>First</label>
+            <select id="compare1"><option value="">Select...</option></select>
+            <span class="vs-label">VS</span>
+            <label style="min-width:auto">Second</label>
+            <select id="compare2"><option value="">Select...</option></select>
+        </div>
+        <div class="btn-row">
+            <button class="btn btn-primary" onclick="runCompare()">Compare</button>
+            <button class="btn btn-reset" onclick="resetCompare()">Reset</button>
+        </div>
+    </div>
+    <div class="compare-result" id="compareResult"></div>
+</div>
+
+<script>
+let allStats = [];
+let allTournaments = [];
+
+const statDefs = [
+    { key: 'games', label: 'Games Played', higher: true },
+    { key: 'winrate', label: 'Winrate %', higher: true, suffix: '%' },
+    { key: 'avg_kills', label: 'Avg Kills', higher: true },
+    { key: 'avg_deaths', label: 'Avg Deaths', higher: false },
+    { key: 'avg_assists', label: 'Avg Assists', higher: true },
+    { key: 'avg_kda', label: 'KDA', higher: true },
+    { key: 'avg_kp', label: 'Kill Participation %', higher: true, suffix: '%' },
+    { key: 'avg_gpm', label: 'Avg GPM', higher: true },
+    { key: 'best_gpm', label: 'Best GPM', higher: true },
+    { key: 'worst_gpm', label: 'Worst GPM', higher: true },
+    { key: 'avg_dpm', label: 'Avg DPM', higher: true },
+    { key: 'avg_damage', label: 'Avg Damage', higher: true },
+    { key: 'avg_damage_taken', label: 'Avg Damage Taken', higher: false },
+    { key: 'damage_taken_per_death', label: 'Damage / Death', higher: true },
+    { key: 'avg_time_min', label: 'Avg Game Time', higher: false },
+];
+
+const teamExtraDefs = [
+    { key: 'team_games', label: 'Team Games', higher: true },
+    { key: 'team_wins', label: 'Team Wins', higher: true },
+    { key: 'team_winrate', label: 'Team Winrate %', higher: true, suffix: '%' },
+];
+
+function fmt(v) { return typeof v === 'number' && v >= 1000 ? v.toLocaleString() : v; }
+
+async function loadData() {
+    allStats = await (await fetch('/api/stats')).json();
+    allTournaments = await (await fetch('/api/tournaments')).json();
+    document.getElementById('compareTournament').innerHTML = '<option value="">All Tournaments</option>' + allTournaments.map(t => `<option value="${t}">${t}</option>`).join('');
+    populateSelects();
+}
+
+function populateSelects() {
+    const type = document.getElementById('compareType').value;
+    let items;
+    if (type === 'players') {
+        items = allStats.map(p => ({ value: p.player_code, label: `${p.name} (${p.player_code}) - ${p.team}` })).sort((a,b) => a.label.localeCompare(b.label));
+    } else {
+        const teams = [...new Set(allStats.map(p => p.team))].sort();
+        items = teams.map(t => ({ value: t, label: t }));
+    }
+    [document.getElementById('compare1'), document.getElementById('compare2')].forEach(sel => {
+        const old = sel.value;
+        sel.innerHTML = '<option value="">Select...</option>' + items.map(i => `<option value="${i.value}">${i.label}</option>`).join('');
+        sel.value = old;
+    });
+}
+
+document.getElementById('compareType').addEventListener('change', () => {
+    populateSelects();
+    document.getElementById('compareResult').innerHTML = '';
+    document.getElementById('compareResult').className = 'compare-result';
+});
+
+async function runCompare() {
+    const type = document.getElementById('compareType').value;
+    const v1 = document.getElementById('compare1').value;
+    const v2 = document.getElementById('compare2').value;
+    const t = document.getElementById('compareTournament').value;
+    if (!v1 || !v2) return alert('Select both items');
+    if (v1 === v2) return alert('Select two different items');
+
+    let url;
+    if (type === 'players') {
+        const p = new URLSearchParams(); p.append('code', v1); p.append('code', v2);
+        if (t) p.append('tournament', t);
+        url = `/api/compare/players?${p}`;
+    } else {
+        const p = new URLSearchParams(); p.append('name', v1); p.append('name', v2);
+        if (t) p.append('tournament', t);
+        url = `/api/compare/teams?${p}`;
+    }
+
+    const data = await (await fetch(url)).json();
+    const s1 = data[v1], s2 = data[v2];
+    if (!s1 || !s2) return alert('Data not found');
+
+    const name1 = s1.name || v1, name2 = s2.name || v2;
+    let defs = type === 'teams' ? [...teamExtraDefs, ...statDefs] : [...statDefs];
+
+    let html = `<div class="result-header"><h2>${type === 'players' ? 'Player' : 'Team'} Comparison${t ? ` | ${t}` : ''}</h2></div>
+        <div class="compare-table"><table>
+            <thead><tr><th>Stat</th><th>${name1}${type==='players'?` <span style="font-weight:400;color:var(--text3)">${v1}</span>`:''}</th><th>${name2}${type==='players'?` <span style="font-weight:400;color:var(--text3)">${v2}</span>`:''}</th></tr></thead><tbody>`;
+
+    for (const d of defs) {
+        const a = s1[d.key], b = s2[d.key];
+        const aW = d.higher ? a > b : a < b, bW = d.higher ? b > a : b < a;
+        const clsA = a === b ? 'same' : aW ? 'better' : 'worse';
+        const clsB = a === b ? 'same' : bW ? 'better' : 'worse';
+        const sfx = d.suffix || '';
+        html += `<tr><td>${d.label}</td><td class="${clsA}">${fmt(a)}${sfx}</td><td class="${clsB}">${fmt(b)}${sfx}</td></tr>`;
+    }
+
+    html += '</tbody></table></div>';
+    const el = document.getElementById('compareResult');
+    el.innerHTML = html;
+    el.className = 'compare-result active';
+}
+
+function resetCompare() {
+    document.getElementById('compare1').value = '';
+    document.getElementById('compare2').value = '';
+    document.getElementById('compareTournament').value = '';
+    const el = document.getElementById('compareResult');
+    el.innerHTML = ''; el.className = 'compare-result';
+}
+
+loadData();
+</script>
+</body>
+</html>
