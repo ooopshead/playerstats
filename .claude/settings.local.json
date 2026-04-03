@@ -19,7 +19,8 @@
       "Bash(curl -s 'http://localhost:5000/api/stats?team=INV')",
       "Bash(curl -s http://localhost:5000/api/player/CIS-P0033)",
       "Bash(curl -s http://localhost:5000/static/logo.svg)",
-      "Bash(curl -s http://localhost:5000/compare)"
+      "Bash(curl -s http://localhost:5000/compare)",
+      "Bash(pip freeze:*)"
     ]
   }
 }
