@@ -20,7 +20,8 @@
       "Bash(curl -s http://localhost:5000/api/player/CIS-P0033)",
       "Bash(curl -s http://localhost:5000/static/logo.svg)",
       "Bash(curl -s http://localhost:5000/compare)",
-      "Bash(pip freeze:*)"
+      "Bash(pip freeze:*)",
+      "Bash(curl -s http://localhost:5000/api/credentials)"
     ]
   }
 }

@@ -617,7 +617,37 @@
             <button class="btn" onclick="toggleFiles()">Manage</button>
         </div>
         <div id="fileManagerBody" style="display:none;">
+            <!-- Fetch from Scoregg -->
+            <div style="padding:18px 24px;border-bottom:1px solid var(--border);">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+                    <div class="section-title" style="margin:0;">Fetch from Scoregg</div>
+                    <button class="btn" onclick="toggleCredentials()" id="credToggleBtn" style="font-size:11px;">API Credentials</button>
+                </div>
+                <div id="credentialsBox" style="display:none;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:14px;margin-bottom:12px;">
+                    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+                        <input type="text" class="filter-input" id="credToken" placeholder="token (cookie _token / header token)" style="flex:1;min-width:280px;">
+                        <input type="text" class="filter-input" id="credUid" placeholder="uid" style="width:120px;">
+                        <button class="btn btn-primary" onclick="saveCredentials()">Save</button>
+                        <span id="credStatus" style="font-size:11px;color:var(--text3);"></span>
+                    </div>
+                    <div style="font-size:11px;color:var(--text3);margin-top:8px;">
+                        Get them from your browser DevTools while logged into mlbb.scoregg.com (cookie <code>_token</code> and <code>_uid</code>).
+                    </div>
+                </div>
+                <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+                    <input type="text" class="filter-input" id="fetchTournamentId" placeholder="Tournament ID (e.g. 174)" style="width:220px;">
+                    <input type="date" class="filter-input" id="fetchStartDate" style="width:160px;" title="Optional start date">
+                    <input type="date" class="filter-input" id="fetchEndDate" style="width:160px;" title="Optional end date">
+                    <button class="btn btn-primary" id="fetchBtn" onclick="fetchTournament()">Fetch</button>
+                    <span id="fetchStatus" class="upload-status"></span>
+                </div>
+                <div style="font-size:11px;color:var(--text3);margin-top:8px;">
+                    Dates are optional — leave empty to fetch the entire tournament range.
+                </div>
+            </div>
+
             <div class="upload-area">
+                <div class="section-title" style="margin:0 12px 0 0;">Upload Manually:</div>
                 <div class="file-input-wrapper">
                     <input type="file" id="fileInput" accept=".xls,.xlsx" onchange="onFileSelected()">
                     <label for="fileInput" class="file-input-label" id="fileLabel">Choose .xls / .xlsx...</label>
@@ -938,6 +968,59 @@ async function uploadFile() {
 }
 async function loadFiles() { const f=await(await fetch('/api/files')).json(); document.getElementById('fileList').innerHTML=f.length?f.map(f=>`<div class="file-item"><div class="file-item-info"><span class="file-item-name">${f.name}</span><span class="file-item-meta">${(f.size/1024).toFixed(1)}KB | ${f.rows} rows</span></div><button class="btn btn-danger" onclick="deleteFile('${esc(f.name)}')">Delete</button></div>`).join(''):'<div style="color:var(--text3);padding:8px 0;font-size:12px;">No files loaded</div>'; }
 async function deleteFile(name) { if(!confirm(`Delete "${name}"?`))return; await fetch(`/api/files/${encodeURIComponent(name)}`,{method:'DELETE'}); loadFiles(); fullReload(); }
+
+// =================== SCOREGG ===================
+async function toggleCredentials() {
+    const box = document.getElementById('credentialsBox');
+    const opening = box.style.display === 'none';
+    box.style.display = opening ? 'block' : 'none';
+    if (opening) {
+        const r = await fetch('/api/credentials');
+        const d = await r.json();
+        document.getElementById('credUid').value = d.uid || '';
+        document.getElementById('credStatus').textContent = d.has_token ? `Saved: ${d.token_preview}` : 'Not configured';
+        document.getElementById('credStatus').style.color = d.has_token ? 'var(--green)' : 'var(--text3)';
+    }
+}
+async function saveCredentials() {
+    const token = document.getElementById('credToken').value.trim();
+    const uid = document.getElementById('credUid').value.trim();
+    const status = document.getElementById('credStatus');
+    if (!token || !uid) { status.textContent = 'Token and UID required'; status.style.color = 'var(--red)'; return; }
+    const r = await fetch('/api/credentials', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({token, uid}) });
+    const d = await r.json();
+    if (d.ok) {
+        status.textContent = 'Saved!'; status.style.color = 'var(--green)';
+        document.getElementById('credToken').value = '';
+    } else {
+        status.textContent = d.error || 'Error'; status.style.color = 'var(--red)';
+    }
+}
+async function fetchTournament() {
+    const tid = document.getElementById('fetchTournamentId').value.trim();
+    const sd = document.getElementById('fetchStartDate').value;
+    const ed = document.getElementById('fetchEndDate').value;
+    const status = document.getElementById('fetchStatus');
+    const btn = document.getElementById('fetchBtn');
+    if (!tid) { status.textContent = 'Tournament ID required'; status.className = 'upload-status error'; return; }
+    btn.disabled = true; status.textContent = 'Fetching from scoregg...'; status.className = 'upload-status';
+    try {
+        const r = await fetch('/api/fetch_tournament', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({tournament_id:tid, start_date:sd, end_date:ed}) });
+        const d = await r.json();
+        if (d.ok) {
+            status.textContent = `Saved "${d.filename}" (${d.rows} rows)`;
+            status.className = 'upload-status success';
+            loadFiles(); fullReload();
+        } else {
+            status.textContent = d.error || 'Failed';
+            status.className = 'upload-status error';
+        }
+    } catch(e) {
+        status.textContent = e.message;
+        status.className = 'upload-status error';
+    }
+    btn.disabled = false;
+}
 
 // =================== INIT ===================
 function populateTeams() {

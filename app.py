@@ -4,6 +4,8 @@ import xlrd
 import json
 import os
 import glob
+import requests
+from datetime import datetime
 
 app = Flask(__name__)
 
@@ -11,9 +13,22 @@ BASE_DIR = os.path.dirname(__file__)
 DATA_DIR = os.path.join(BASE_DIR, 'data')
 ROLES_FILE = os.path.join(BASE_DIR, 'roles.json')
 PLAYER_SETTINGS_FILE = os.path.join(BASE_DIR, 'player_settings.json')
+CREDENTIALS_FILE = os.path.join(BASE_DIR, 'credentials.json')
 
 ROLE_OPTIONS = ['EXP', 'JUNGLE', 'MID', 'ROAM', 'GOLD']
 ALLOWED_EXTENSIONS = {'.xls', '.xlsx'}
+
+SCOREGG_DATA_ITEMS = ','.join([
+    'tournament', 'kills', 'deaths', 'assists', 'kda', 'percent',
+    'money', 'min_money', 'team_money', 'team_min_money', 'money_percent',
+    'xpm', 'total_damage', 'min_damage', 'team_damage', 'damage_share',
+    'damage_gold', 'damage_taken_gold',
+    'building_damage', 'building_damage_per_minute', 'team_building_damage', 'building_damage_share',
+    'damage_taken', 'damage_taken_per_minute', 'team_damage_taken', 'damage_taken_share',
+    'control_time_s', 'heal',
+    'lengendary', 'savage', 'maniac', 'triple_kill', 'double_kill', 'first_blood',
+    'tower_destroy_count', 'cryoturtle_kill_count', 'lord_kill_count', 'time_s',
+])
 
 os.makedirs(DATA_DIR, exist_ok=True)
 
@@ -46,6 +61,59 @@ def load_player_settings():
 def save_player_settings(settings):
     with open(PLAYER_SETTINGS_FILE, 'w') as f:
         json.dump(settings, f, indent=2)
+
+
+def load_credentials():
+    if os.path.exists(CREDENTIALS_FILE):
+        with open(CREDENTIALS_FILE, 'r') as f:
+            return json.load(f)
+    return {}
+
+
+def save_credentials(creds):
+    with open(CREDENTIALS_FILE, 'w') as f:
+        json.dump(creds, f, indent=2)
+
+
+def fetch_scoregg_excel(tournament_id, start_date, end_date):
+    """Fetch the per-game records Excel from scoregg API."""
+    creds = load_credentials()
+    token = creds.get('token', '')
+    uid = creds.get('uid', '')
+    if not token or not uid:
+        raise ValueError('No credentials configured. Set token and uid first.')
+
+    url = 'https://mlbb.scoregg.com/services/query/player_record.php'
+    params = {
+        'gameID': '1',
+        'tournamentID_string': str(tournament_id),
+        'start_time': start_date,
+        'end_time': end_date,
+        'playerID': '',
+        'heroID': '',
+        'teamID': '',
+        'min_count': '0',
+        'data_items': SCOREGG_DATA_ITEMS,
+        'is_download': '1',
+        'language': 'en',
+    }
+    headers = {
+        'accept': 'application/json, text/plain, */*',
+        'referer': 'https://mlbb.scoregg.com/query-data/query',
+        'token': token,
+        'uid': str(uid),
+        'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/147.0.0.0 Safari/537.36',
+    }
+    cookies = {'_token': token, '_uid': str(uid)}
+
+    r = requests.get(url, params=params, headers=headers, cookies=cookies, timeout=60)
+    r.raise_for_status()
+    content = r.content
+    if not content or len(content) < 1024:
+        raise ValueError(f'Response too small ({len(content)} bytes), likely an error: {content[:300]!r}')
+    if content[:5] in (b'<!DOC', b'<html'):
+        raise ValueError('Got HTML instead of Excel — credentials may be expired')
+    return content
 
 
 def get_all_excel_files():
@@ -448,6 +516,64 @@ def delete_file(filename):
         return jsonify({'error': 'File not found'}), 404
     os.remove(filepath)
     return jsonify({'ok': True})
+
+
+@app.route('/api/credentials', methods=['GET', 'POST'])
+def credentials():
+    if request.method == 'GET':
+        creds = load_credentials()
+        # Don't return the full token - just whether it's set + masked preview
+        token = creds.get('token', '')
+        return jsonify({
+            'has_token': bool(token),
+            'token_preview': (token[:6] + '...' + token[-4:]) if len(token) > 10 else '',
+            'uid': creds.get('uid', ''),
+        })
+    data = request.json
+    token = (data.get('token') or '').strip()
+    uid = (data.get('uid') or '').strip()
+    if not token or not uid:
+        return jsonify({'error': 'Both token and uid are required'}), 400
+    save_credentials({'token': token, 'uid': uid})
+    return jsonify({'ok': True})
+
+
+@app.route('/api/fetch_tournament', methods=['POST'])
+def fetch_tournament():
+    data = request.json
+    tournament_id = (data.get('tournament_id') or '').strip()
+    start_date = (data.get('start_date') or '').strip()
+    end_date = (data.get('end_date') or '').strip()
+    if not tournament_id:
+        return jsonify({'error': 'tournament_id is required'}), 400
+
+    # Default to wide range if dates not provided
+    if not start_date:
+        start_date = '2020-01-01'
+    if not end_date:
+        end_date = '2030-12-31'
+
+    try:
+        content = fetch_scoregg_excel(tournament_id, start_date, end_date)
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 400
+    except requests.HTTPError as e:
+        return jsonify({'error': f'HTTP {e.response.status_code} from scoregg'}), 502
+    except requests.RequestException as e:
+        return jsonify({'error': f'Network error: {e}'}), 502
+
+    filename = f'scoregg_t{tournament_id}.xls'
+    filepath = os.path.join(DATA_DIR, filename)
+    with open(filepath, 'wb') as f:
+        f.write(content)
+
+    try:
+        rows = parse_single_excel(filepath)
+    except Exception as e:
+        os.remove(filepath)
+        return jsonify({'error': f'Saved file could not be parsed: {e}'}), 500
+
+    return jsonify({'ok': True, 'filename': filename, 'rows': len(rows)})
 
 
 if __name__ == '__main__':
